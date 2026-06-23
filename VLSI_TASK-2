@@ -1,0 +1,104 @@
+DESIGN MODULE
+module alu(
+    input  [7:0] A,
+    input  [7:0] B,
+    input  [3:0] opcode,
+    output reg [7:0] result,
+    output reg zero
+);
+
+always @(*) begin
+    case(opcode)
+        4'b0000: result = A + B;
+        4'b0001: result = A - B;
+        4'b0010: result = A & B;
+        4'b0011: result = A | B;
+        4'b0100: result = A ^ B;
+        4'b0101: result = ~A;
+        4'b0110: result = A + 1;
+        4'b0111: result = A - 1;
+        default: result = 8'b00000000;
+    endcase
+
+    zero = (result == 0);
+end
+
+endmodule
+-->TestBench
+`timescale 1ns/1ps
+
+module alu_tb;
+
+    reg [7:0] A;
+    reg [7:0] B;
+    reg [3:0] opcode;
+
+    wire [7:0] result;
+
+    // DUT Instantiation
+    alu dut (
+        .A(A),
+        .B(B),
+        .opcode(opcode),
+        .result(result)
+    );
+
+    integer i;
+
+    initial begin
+
+        // Initialize
+        A = 0;
+        B = 0;
+        opcode = 0;
+
+        // Directed Tests
+
+        A = 8'd10; B = 8'd5; opcode = 4'b0000; #20;
+        A = 8'd20; B = 8'd8; opcode = 4'b0001; #20;
+
+        A = 8'd15; B = 8'd3; opcode = 4'b0000; #20;
+        A = 8'd50; B = 8'd25; opcode = 4'b0001; #20;
+
+        A = 8'd100; B = 8'd40; opcode = 4'b0000; #20;
+        A = 8'd75; B = 8'd10; opcode = 4'b0001; #20;
+
+        // Random Tests
+        for(i = 0; i < 20; i = i + 1)
+        begin
+            A = $urandom_range(0,255);
+            B = $urandom_range(0,255);
+            opcode = $urandom_range(0,1);
+            #20;
+        end
+
+        $stop;
+    end
+
+    initial begin
+        $monitor("Time=%0t A=%0d B=%0d Opcode=%0d Result=%0d",
+                 $time, A, B, opcode, result);
+    end
+
+endmodule
+
+--> YOSYS SYNTHESIS
+# YOSYS SYNTHESIS FLOW
+read_verilog alu.v
+hierarchy -top alu
+
+# Optimization passes
+proc; opt; fsm; opt; memory; opt
+techmap; opt
+
+# Sky130 tech mapping (included)
+read_liberty sky130_fd_sc_hd.lib
+abc -liberty sky130_fd_sc_hd.lib
+opt_clean
+
+# Output netlist
+write_verilog alu_netlist.v
+
+# Show results
+stat
+stat -liberty sky130_fd_sc_hd.lib

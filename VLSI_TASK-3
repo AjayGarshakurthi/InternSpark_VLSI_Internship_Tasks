@@ -1,0 +1,85 @@
+DESIGN MODULE
+module alu (
+    input  wire [7:0] A,
+    input  wire [7:0] B,
+    input  wire [2:0] opcode,
+    output reg  [7:0] result,
+    output reg  zero
+);
+
+always @(*) begin
+    case (opcode)
+        3'b000: result = A + B;
+        3'b001: result = A - B;
+        3'b010: result = A & B;
+        3'b011: result = A | B;
+        3'b100: result = A ^ B;
+        default: result = 8'b0;
+    endcase
+
+    zero = (result == 8'b0);
+end
+
+endmodule
+
+# Read library (optional for synthesis)
+read_liberty sky130_fd_sc_hd__tt_025C_1v80.lib
+
+# Read RTL
+read_verilog alu.v
+
+# Set top module
+hierarchy -top alu
+
+# Synthesis
+proc
+opt
+fsm
+techmap
+abc
+
+# Write outputs
+write_verilog alu_clean.v
+write_sdc synth.sdc
+stat
+
+# Read Liberty
+read_liberty OpenROAD-flow-scripts/flow/platforms/sky130hd/lib/sky130_fd_sc_hd__tt_025C_1v80.lib
+
+# Read synthesized netlist
+read_verilog alu_clean.v
+
+# Link design
+link_design alu
+
+# Create clock
+create_clock -name clk -period 10
+
+# I/O constraints (IMPORTANT FIXED VERSION)
+set_input_delay 1.0 -clock clk [all_inputs]
+set_output_delay 1.0 -clock clk [all_outputs]
+
+#Constraints Applied
+Clock period = 10 ns
+Input delay = 1 ns
+Output delay = 1 ns
+Load = 0.05
+
+# Drive strength modeling
+set_driving_cell sky130_fd_sc_hd__inv_1 [all_inputs]
+
+# Optional realism
+set_load 0.05 [all_outputs]
+
+# Timing analysis
+report_checks -path_delay max -fields {arrival required slack}
+report_checks -path_delay min
+report_timing
+
+puts "=== WORST NEGATIVE SLACK ==="
+report_timing -slack_lesser_than 0 -max_paths 1
+--> run.do
+
+#Results
+Worst Slack (WNS): +4.82 ns
+Timing Status: PASS (No violations)
